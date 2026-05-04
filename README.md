@@ -41,17 +41,6 @@ The system reliably schedules, processes, and tracks background jobs in a **faul
 
 ---
 
-# 📦 Project Structure
-distributed-job-scheduler
-│
-├── controller/ # REST APIs (if any)
-├── service/ # Business logic
-├── scheduler/ # Job triggering logic
-├── kafka/ # Producer & Consumer logic
-├── entity/ # JPA entities
-├── repository/ # Database layer
-├── config/ # Kafka configuration
-└── DistributedJobSchedulerApplication.java
 
 
 
@@ -99,3 +88,9 @@ spring.kafka.producer.retries=3
 id	job_name	payload	retry_count	schedule_time	status
 48	Job 74	test	0	2026-05-05 02:19:00	SUCCESS
 49	Job 75	test	0	2026-05-05 02:24:00	RUNNING
+
+
+👨‍💻 Author
+
+Vishal Bhawari
+Java Backend Developer | Spring Boot | Microservices | Kafka | System Design
