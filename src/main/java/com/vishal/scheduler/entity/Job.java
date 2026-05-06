@@ -25,7 +25,20 @@ public class Job {
     @JsonFormat(pattern = "yyyy-MM-dd'T'HH:mm:ss")
     private LocalDateTime scheduleTime;
 
-    private String status;
+    @Enumerated(EnumType.STRING)
+    private JobStatus status;
 
-    private Integer retryCount; // ✅ FIXED
+    private Integer retryCount;
+
+
+    private Integer priority;
+
+
+    private LocalDateTime startedAt;
+
+
+    private LocalDateTime completedAt;
+
+
+    private String errorMessage;
 }

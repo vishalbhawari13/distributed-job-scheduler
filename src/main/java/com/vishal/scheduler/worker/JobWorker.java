@@ -1,23 +1,22 @@
 package com.vishal.scheduler.worker;
 
 import com.vishal.scheduler.entity.Job;
+import com.vishal.scheduler.entity.JobStatus;
 import com.vishal.scheduler.repository.JobRepository;
 import com.vishal.scheduler.service.JobExecutor;
 import com.vishal.scheduler.service.KafkaProducerService;
 import lombok.RequiredArgsConstructor;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 
+@Slf4j
 @Component
 @RequiredArgsConstructor
 public class JobWorker {
-
-    private static final Logger log = LoggerFactory.getLogger(JobWorker.class);
 
     private final JobRepository jobRepository;
     private final JobExecutor jobExecutor;
@@ -27,48 +26,62 @@ public class JobWorker {
     @Transactional
     public void consume(String jobId) {
 
-        log.info("🔥 Received job from Kafka: {}", jobId);
+        log.info("Received job: {}", jobId);
 
-        Job job = jobRepository.findById(Long.parseLong(jobId)).orElse(null);
+        Job job = jobRepository.findById(Long.parseLong(jobId))
+                .orElse(null);
 
         if (job == null) {
-            log.error("❌ Job not found: {}", jobId);
+            log.error("Job not found: {}", jobId);
             return;
         }
 
-        // 🔥 Idempotency check (CRITICAL)
-        if (!"RUNNING".equals(job.getStatus())) {
-            log.warn("⚠️ Skipping duplicate job: {}", jobId);
+        if (job.getStatus() != JobStatus.RUNNING) {
+
+            log.warn("Duplicate job skipped: {}", jobId);
             return;
         }
 
         try {
-            log.info("🚀 Executing job: {}", job.getJobName());
 
             jobExecutor.execute(job);
 
-            job.setStatus("SUCCESS");
-            log.info("✅ Job completed: {}", job.getJobName());
+            job.setStatus(JobStatus.SUCCESS);
+
+            job.setCompletedAt(LocalDateTime.now());
+
+            log.info("Job completed successfully: {}", jobId);
 
         } catch (Exception e) {
 
+            log.error("Job failed: {}", jobId);
+
             job.setRetryCount(job.getRetryCount() + 1);
+
+            job.setErrorMessage(e.getMessage());
 
             if (job.getRetryCount() < 3) {
 
-                log.warn("🔁 Retrying job: {} (attempt {})", jobId, job.getRetryCount());
+                int retryDelay =
+                        (int) Math.pow(2, job.getRetryCount()) * 10;
 
-                job.setStatus("PENDING");
-                job.setScheduleTime(LocalDateTime.now().plusSeconds(10));
+                job.setStatus(JobStatus.PENDING);
+
+                job.setScheduleTime(
+                        LocalDateTime.now().plusSeconds(retryDelay)
+                );
+
+                log.warn("Retrying job {} after {} seconds",
+                        jobId,
+                        retryDelay);
 
             } else {
 
-                log.error("💀 Job failed permanently: {}", jobId);
+                job.setStatus(JobStatus.FAILED);
 
-                job.setStatus("FAILED");
-
-                // 🔥 send to DLQ
                 kafkaProducerService.sendToDLQ(jobId);
+
+                log.error("Job permanently failed: {}", jobId);
             }
         }
 

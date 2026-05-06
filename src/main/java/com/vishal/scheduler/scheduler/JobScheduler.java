@@ -1,14 +1,18 @@
 package com.vishal.scheduler.scheduler;
 
 import com.vishal.scheduler.entity.Job;
+import com.vishal.scheduler.entity.JobStatus;
 import com.vishal.scheduler.service.JobService;
 import com.vishal.scheduler.service.KafkaProducerService;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
+@Slf4j
 @Component
 @RequiredArgsConstructor
 public class JobScheduler {
@@ -21,15 +25,27 @@ public class JobScheduler {
 
         List<Job> jobs = jobService.getPendingJobs();
 
+        if (jobs.isEmpty()) {
+            return;
+        }
+
+        log.info("Found {} pending jobs", jobs.size());
+
         for (Job job : jobs) {
 
-            // 🔥 prevent duplicate scheduling
-            if (!"PENDING".equals(job.getStatus())) continue;
+            if (job.getStatus() != JobStatus.PENDING) {
+                continue;
+            }
 
-            job.setStatus("RUNNING");
+            job.setStatus(JobStatus.RUNNING);
+
+            job.setStartedAt(LocalDateTime.now());
+
             jobService.updateJob(job);
 
             kafkaProducerService.sendJob(job.getId().toString());
+
+            log.info("Job scheduled: {}", job.getId());
         }
     }
 }
