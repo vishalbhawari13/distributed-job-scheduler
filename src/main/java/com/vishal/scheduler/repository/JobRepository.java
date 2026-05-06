@@ -27,4 +27,14 @@ public interface JobRepository extends JpaRepository<Job, Long> {
     );
 
     List<Job> findByStatus(JobStatus status);
+
+    @Query("""
+    SELECT j
+    FROM Job j
+    WHERE j.status = 'RUNNING'
+    AND j.startedAt <= :time
+""")
+    List<Job> findTimedOutJobs(
+            @Param("time") LocalDateTime time
+    );
 }

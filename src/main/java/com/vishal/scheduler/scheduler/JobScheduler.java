@@ -6,6 +6,7 @@ import com.vishal.scheduler.service.JobService;
 import com.vishal.scheduler.service.KafkaProducerService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import net.javacrumbs.shedlock.spring.annotation.SchedulerLock;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
@@ -21,6 +22,12 @@ public class JobScheduler {
     private final KafkaProducerService kafkaProducerService;
 
     @Scheduled(fixedRate = 5000)
+
+    @SchedulerLock(
+            name = "processJobsLock",
+            lockAtLeastFor = "PT5S",
+            lockAtMostFor = "PT30S"
+    )
     public void processJobs() {
 
         List<Job> jobs = jobService.getPendingJobs();
